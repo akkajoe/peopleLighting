@@ -533,7 +533,9 @@ function showDetailsBundle(d) {
   const neighHTML = (neigh.length === 0) ? `<div class="k" style="margin-top:8px;">—</div>` : `
     <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
       ${neigh.map(n => {
-        const imgUrl = encodeURI(IMG_PREFIX.replaceAll('\\','/') + '/' + (n.rep.img_file ?? ""));
+        const imgUrl = encodeURI(
+  `${IMG_PREFIX.replaceAll('\\','/')}/${n.rep.artist}/${n.rep.genre}/${n.pid}.png`
+);
         return `
           <div style="background:white; border:1px solid rgba(0,0,0,0.08); border-radius:12px; padding:8px; cursor:pointer;"
                onclick="window.jumpToPainting('${String(n.pid).replaceAll("'", "\\'")}')">
@@ -549,7 +551,9 @@ function showDetailsBundle(d) {
     </div>
   `;
 
-  const imgUrl = encodeURI(IMG_PREFIX.replaceAll('\\','/') + '/' + (d.img_file ?? ""));
+  const imgUrl = encodeURI(
+  `${IMG_PREFIX.replaceAll('\\','/')}/${d.artist}/${d.genre}/${d.painting_id}.png`
+);
 
   details.innerHTML = `
     <div class="kv">
