@@ -720,7 +720,23 @@ function normalizeAndFlip() {
 
 (async function main(){
   try {
-    dataAll = await loadPoints();
+    const missingSet = new Set([
+  "a-kiss-for-baby-anne-no2_1896-1897_0",
+  "head-of-francoise-looking-down-no4_1908_0",
+  "portrait-of-edmond-renoir-jr_1888_0",
+  "portrait-of-madame-x_1878_0",
+  "portrait-of-margaret-milligan-sloan-no2_1893_0",
+  "portrait-of-the-artists-sister-mme-edma-pontillon-c1872-75_1872-1875_0",
+  "simone-in-white-bonnet-seated-with-clasped-hands-no1_1903_0",
+  "sketch-of-antoinette-no1_1901_0",
+  "susan-comforting-the-baby-no1_1881_0",
+  "susan-comforting-the-baby-no2_1881_0",
+  "woman-with-a-cat_1880_0"
+]);
+
+dataAll = (await loadPoints()).filter(
+  d => !missingSet.has(String(d.painting_id || "").toLowerCase())
+);
     normalizeAndFlip();
     buildIndices();
     initFilters();
