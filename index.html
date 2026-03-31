@@ -156,7 +156,7 @@
 
 <script>
 const SITE_DATA_PREFIX = "site_data";
-const IMG_PREFIX = "lighting_people_scene";
+const IMG_PREFIX = "data";
 const PLOTS_PREFIX = "plots_embedded";
 const BALLS_PREFIX = "balls";
 
@@ -449,17 +449,11 @@ function render3DPanel(d){
   const pid = String(d.painting_id ?? "");
   const artist = String(d.artist ?? "Unknown");
   const genre = String(d.genre ?? "Unknown");
-  const base = safeFilename(pid);
 
-  const urls = [
-    { tag: "ev-00", fn: `${base}_ev-00.png` },
-    { tag: "ev-25", fn: `${base}_ev-25.png` },
-    { tag: "ev-50", fn: `${base}_ev-50.png` },
-  ].map(o => ({
-    tag: o.tag,
-    fn: o.fn,
-    url: encodeURI(BALLS_PREFIX.replaceAll('\\','/') + "/" + o.fn)
-  }));
+  const baseCandidates = Array.from(new Set([
+    pid,
+    safeFilename(pid)
+  ].filter(Boolean)));
 
   wrap.innerHTML = `
     <div class="kv">
@@ -470,19 +464,60 @@ function render3DPanel(d){
 
     <div style="margin-top:14px; font-weight:800; color:#111827; font-size:20px;">Chrome balls (ev-00 / ev-25 / ev-50)</div>
     <div style="font-size:12px; color:#6b7280; margin-top:6px;">
-      Loaded from <b>${escapeHtml(BALLS_PREFIX)}/</b> using <code>${escapeHtml(base)}_ev-XX.png</code>
+      Loaded from <b>${escapeHtml(BALLS_PREFIX)}/</b> trying raw and sanitized filenames.
     </div>
 
-    <div class="ball-stack">
-      ${urls.map(u => `
-        <div class="ball-card">
-          <img src="${u.url}" alt="${escapeHtml(u.tag)}" />
-          <div class="ball-label">${escapeHtml(u.tag)}</div>
-          <div class="ball-fn">${escapeHtml(u.fn)}</div>
-        </div>
-      `).join('')}
-    </div>
+    <div class="ball-stack" id="ballStack"></div>
   `;
+
+  const stack = document.getElementById("ballStack");
+  const evTags = ["ev-00", "ev-25", "ev-50"];
+
+  evTags.forEach(tag => {
+    const card = document.createElement("div");
+    card.className = "ball-card";
+
+    const img = document.createElement("img");
+    img.alt = tag;
+
+    const label = document.createElement("div");
+    label.className = "ball-label";
+    label.textContent = tag;
+
+    const fn = document.createElement("div");
+    fn.className = "ball-fn";
+    fn.textContent = "Trying...";
+
+    const candidates = baseCandidates.map(base => ({
+      fn: `${base}_${tag}.png`,
+      url: encodeURI(BALLS_PREFIX.replaceAll('\\','/') + "/" + `${base}_${tag}.png`)
+    }));
+
+    let idx = 0;
+
+    function tryNext() {
+      if (idx >= candidates.length) {
+        img.removeAttribute("src");
+        fn.textContent = "Not found";
+        return;
+      }
+      const cand = candidates[idx++];
+      fn.textContent = cand.fn;
+      img.src = cand.url;
+    }
+
+    img.onerror = tryNext;
+    img.onload = () => {
+      fn.textContent = candidates[Math.max(0, idx - 1)].fn;
+    };
+
+    tryNext();
+
+    card.appendChild(img);
+    card.appendChild(label);
+    card.appendChild(fn);
+    stack.appendChild(card);
+  });
 }
 
 function getTop3Neighbors(selectedPaintingId){
@@ -533,9 +568,7 @@ function showDetailsBundle(d) {
   const neighHTML = (neigh.length === 0) ? `<div class="k" style="margin-top:8px;">—</div>` : `
     <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
       ${neigh.map(n => {
-        const imgUrl = encodeURI(
-  `${IMG_PREFIX.replaceAll('\\','/')}/${n.rep.artist}/${n.rep.genre}/${n.pid}.png`
-);
+        const imgUrl = encodeURI(IMG_PREFIX.replaceAll('\\','/') + '/' + (n.rep.img_file ?? ""));
         return `
           <div style="background:white; border:1px solid rgba(0,0,0,0.08); border-radius:12px; padding:8px; cursor:pointer;"
                onclick="window.jumpToPainting('${String(n.pid).replaceAll("'", "\\'")}')">
@@ -551,9 +584,7 @@ function showDetailsBundle(d) {
     </div>
   `;
 
-  const imgUrl = encodeURI(
-  `${IMG_PREFIX.replaceAll('\\','/')}/${d.artist}/${d.genre}/${d.painting_id}.png`
-);
+  const imgUrl = encodeURI(IMG_PREFIX.replaceAll('\\','/') + '/' + (d.img_file ?? ""));
 
   details.innerHTML = `
     <div class="kv">
@@ -720,23 +751,7 @@ function normalizeAndFlip() {
 
 (async function main(){
   try {
-    const missingSet = new Set([
-  "a-kiss-for-baby-anne-no2_1896-1897_0",
-  "head-of-francoise-looking-down-no4_1908_0",
-  "portrait-of-edmond-renoir-jr_1888_0",
-  "portrait-of-madame-x_1878_0",
-  "portrait-of-margaret-milligan-sloan-no2_1893_0",
-  "portrait-of-the-artists-sister-mme-edma-pontillon-c1872-75_1872-1875_0",
-  "simone-in-white-bonnet-seated-with-clasped-hands-no1_1903_0",
-  "sketch-of-antoinette-no1_1901_0",
-  "susan-comforting-the-baby-no1_1881_0",
-  "susan-comforting-the-baby-no2_1881_0",
-  "woman-with-a-cat_1880_0"
-]);
-
-dataAll = (await loadPoints()).filter(
-  d => !missingSet.has(String(d.painting_id || "").toLowerCase())
-);
+    dataAll = await loadPoints();
     normalizeAndFlip();
     buildIndices();
     initFilters();
